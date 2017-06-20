@@ -39,3 +39,7 @@ tr.approved-revision td:last-child {
 	border:solid #aaa 1px;
 	padding: 3px 8px;
 }
+
+span.approvingUser {
+    display: block;
+}
