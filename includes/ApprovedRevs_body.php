@@ -15,6 +15,25 @@ class ApprovedRevs {
 	static $mApprovedRevIDForPage = array();
 	static $mApproverForPage = array();
 	static $mUserCanApprove = null;
+	/**
+	 * @var array|null Variable holding array of users/groups able to approve
+	 *     titles based upon page props set by parser function #approvable_by.
+	 *     This variable has keys of page IDs and values as arrays of
+	 *     usernames and user groups. Holding multiple page IDs likely isn't
+	 *     necessary, but reduces security issue of one page's approvers being
+	 *     misused for another page. Example:
+	 *     [
+	 *         1 => [
+	 *             users => [ 'user1', 'user2' ],
+	 *             groups => [ 'user1', 'user2' ],
+	 *         ],
+	 *         234 => [
+	 *             users => [ 'user2', 'user3' ],
+	 *             groups => [ 'group2', 'group3' ],
+	 *         ]
+	 *     ]
+	 */
+	private static $approversFromPageProp = null;
 
 	/**
 	 * Gets the approved revision User for this page, or null if there isn't
@@ -144,10 +163,23 @@ class ApprovedRevs {
 		}
 
 		// It's not in an included namespace, so check for the page
-		// property - for some reason, calling the standard
+		// properties for the parser functions - for some reason, calling the standard
 		// getProperty() function doesn't work, so we just do a DB
 		// query on the page_props table.
 		$dbr = wfGetDB( DB_SLAVE );
+		$res = $dbr->select( 'page_props', 'COUNT(*)',
+			[
+				'pp_page' => $title->getArticleID(),
+				'pp_propname' => [ 'approvedrevs-approver-users', 'approvedrevs-approver-groups' ],
+			]
+		);
+		$row = $dbr->fetchRow( $res );
+		if ( intval( $row[0] ) > 0 ) {
+			$title->isApprovable = true;
+			return $isApprovable;
+		}
+
+		// parser function page properties not present. Check for magic word.
 		$res = $dbr->select( 'page_props', 'COUNT(*)',
 			array(
 				'pp_page' => $title->getArticleID(),
@@ -179,8 +211,12 @@ class ApprovedRevs {
 		} elseif ( ApprovedRevs::checkPermission( $user, $title, $permission ) ) {
 			self::$mUserCanApprove = true;
 			return true;
+		} elseif ( ApprovedRevs::checkParserFunctionPermission( $user, $title ) ) {
+			self::$mUserCanApprove = true;
+			return true;
 		} else {
 			// If the user doesn't have the 'approverevisions'
+			// permission, nor does #approvable_by grant them
 			// permission, they still might be able to approve
 			// revisions - it depends on whether the current
 			// namespace is within the admin-defined
@@ -217,6 +253,68 @@ class ApprovedRevs {
 			}
 		}
 		self::$mUserCanApprove = false;
+		return false;
+	}
+
+	/**
+	 * Check if a user is allowed to approve a page based upon being listed in
+	 * the page properties approvedrevs-approver-users and
+	 * approvedrevs-approver-groups
+	 *
+	 * @param User $user Check if this user has #approvable_by permissions on title
+	 * @param Title $title Title to check
+	 * @return bool Whether or not approving revisions is allowed
+	 * @since 0.9
+	 */
+	public static function checkParserFunctionPermission( User $user, Title $title ) {
+
+		// init self::$approversFromPageProp if needed
+		if ( self::$approversFromPageProp === null ) {
+			self::$approversFromPageProp = [];
+		}
+		$articleID = $title->getArticleID();
+		// if page props not set for this title, set them
+		if ( !isset( self::$approversFromPageProp[$articleID] ) ) {
+			self::$approversFromPageProp[$articleID] = [];
+
+			$dbr = wfGetDB( DB_SLAVE );
+			$approvers = [];
+			foreach ( ['users','groups'] as $type ) {
+				$approvers = $dbr->selectField(
+					'page_props',
+					'pp_value',
+					[
+						'pp_page' => $title->getArticleID(),
+						'pp_propname' => "approvedrevs-approver-$type"
+					],
+					__METHOD__
+				);
+
+				if ( $approvers === false ) {
+					self::$approversFromPageProp[$articleID][$type] = [];
+				}
+				else {
+					self::$approversFromPageProp[$articleID][$type] = explode( ',', $approvers );
+				}
+			}
+		}
+
+		// if user listed as an approver
+		if ( in_array( $user->getName(), self::$approversFromPageProp[$articleID]['users'] ) ) {
+			return true;
+		}
+
+		// intersect groups that can approve with user's group
+		$userGroupsWithApprove = array_intersect(
+			self::$approversFromPageProp[$articleID]['groups'], $user->getGroups()
+		);
+
+		// if user has any groups in list of approver groups, allow approval
+		if ( count( $userGroupsWithApprove ) > 0 ) {
+			return true;
+		}
+
+		// neither group nor username allowed approval...disallow
 		return false;
 	}
 
