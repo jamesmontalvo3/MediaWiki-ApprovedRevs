@@ -1,7 +1,7 @@
 {
 	"@Note": "When updating this file please also update ApprovedRevs.php with the same changes.",
 	"name": "Approved Revs",
-	"version": "0.8",
+	"version": "0.9",
 	"author": [
 		"Yaron Koren",
 		"..."
@@ -121,6 +121,9 @@
 		"ParserBeforeTidy": [
 			"ApprovedRevsHooks::handleMagicWords"
 		],
+		"ParserFirstCallInit": [
+			"ApprovedRevsHooks::registerFunctions"
+		],
 		"AdminLinks": [
 			"ApprovedRevsHooks::addToAdminLinks"
 		],
@@ -147,6 +150,7 @@
 	"config": {
 		"_prefix": "eg",
 		"ApprovedRevsNamespaces": [ 0, 2, 4, 10, 12 ],
+		"ApprovedRevsCategoryApprovals": [],
 		"ApprovedRevsSelfOwnedNamespaces": [],
 		"ApprovedRevsBlankIfUnapproved": false,
 		"ApprovedRevsAutomaticApprovals": true,

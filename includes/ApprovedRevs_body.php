@@ -15,6 +15,22 @@ class ApprovedRevs {
 	static $mApprovedRevIDForPage = array();
 	static $mApproverForPage = array();
 	static $mUserCanApprove = null;
+	/**
+	 * @var array|null Helper property for $egApprovedRevsCategoryApprovals.
+	 *     getCategoryPermissions() validates and normalizes
+	 *     $egApprovedRevsCategoryApprovals and sets this property to that value.
+	 */
+	private static $categoryPermissions = null;
+	/**
+	 * @var array|null Property holding array of users able to approve titles
+	 *     based upon page prop set by parser function #approvedrevs_approvers.
+	 *     This property has keys of page IDs and values as arrays of
+	 *     usernames. Holding multiple page IDs likely isn't necessary, but
+	 *     reduces security issue of one page's approvers being misused for
+	 *     another page. Example:
+	 *     [ 1 => [ 'user1', 'user2' ], 234 => [ 'user2', 'user3' ] ]
+	 */
+	private static $approversFromPageProp = null;
 
 	/**
 	 * Gets the approved revision User for this page, or null if there isn't
@@ -175,8 +191,12 @@ class ApprovedRevs {
 		} elseif ( ApprovedRevs::checkPermission( $user, $title, $permission ) ) {
 			self::$mUserCanApprove = true;
 			return true;
+		} elseif ( ApprovedRevs::checkCategoryPermission( $user, $title ) ) {
+			self::$mUserCanApprove = true;
+			return true;
 		} else {
 			// If the user doesn't have the 'approverevisions'
+			// permission, nor does the page category grant them
 			// permission, they still might be able to approve
 			// revisions - it depends on whether the current
 			// namespace is within the admin-defined
@@ -214,6 +234,167 @@ class ApprovedRevs {
 		}
 		self::$mUserCanApprove = false;
 		return false;
+	}
+
+	/**
+	 * Check if a user is allowed to approve a particular title based upon category
+	 * permissions ($egApprovedRevsCategoryApprovals)
+	 *
+	 * @param User $user Check if this user has category permissions on title
+	 * @param Title $title Title to check
+	 * @return bool Whether or not approving revisions is allowed
+	 * @since 0.9
+	 */
+	function checkCategoryPermission( User $user, Title $title ) {
+
+		$permissions = self::getCategoryPermissions();
+
+		// Which, if any, of $title's categories are approvable
+		$titleApprovableCategories = array_intersect(
+			array_keys( $permissions ),
+			self::getTitleCategoryList( $title )
+		);
+		// no approvable categories on $title, return false
+		if ( count( $titleApprovableCategories ) === 0 ) {
+			return false;
+		}
+
+		$userGroups = $user->getGroups();
+		foreach ( $titleApprovableCategories as $category ) {
+			// check group permissions
+			if ( count( array_intersect( $permissions[$category]['group'], $userGroups ) ) > 0 ) {
+				return true;
+			}
+			// check property permissions
+			if ( $permissions[$category]['property']
+				&& self::userInApproversPageProp( $user, $title )
+			) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Gets $egApprovedRevsCategoryApprovals, but normalizes format for easier
+	 * logic later. If 'property' is not set, it will be set to false. If 'group'
+	 * is a string (i.e. just one group) it will be turned into a single-element
+	 * array. If 'group' is not present it will be added as an empty array.
+	 *
+	 * @return array Array of category permissions. Example:
+	 *     [
+	 *        'My_Approvable_Category' => [
+	 *            'group' => [ 'SomeGroup' ],
+	 *            'property' => false
+	 *        ]
+	 *     ]
+	 * @throws MWException
+	 * @since 0.9
+	 */
+	public static function getCategoryPermissions() {
+		if ( self::$categoryPermissions !== null ) {
+			return self::$categoryPermissions;
+		}
+		global $egApprovedRevsCategoryApprovals;
+		$permissions = $egApprovedRevsCategoryApprovals;
+		foreach( $permissions as $category => $permisions ) {
+			// validate and normalize for 'group' permissions
+			if ( !isset( $permissions[$category]['group'] )  {
+				$permissions[$category]['group'] = [];
+			}
+			elseif ( is_string( $permissions[$category]['group'] ) ) {
+				$permissions[$category]['group'] = [ $permissions[$category]['group'] ];
+			}
+			elseif ( !is_array( $permissions[$category]['group'] ) ) {
+				throw new MWException(
+					'Approved Revs category permission by group must be array or string' );
+			}
+			// validate and normalize for 'property' permissions
+			if ( !isset( $permissions[$category]['property'] )  {
+				$permissions[$category]['property'] = false;
+			}
+			elseif ( !is_bool( $permissions[$category]['property'] ) ) {
+				throw new MWException(
+					'Approved Revs category permission by page property must be boolean' );
+			}
+		}
+		self::$categoryPermissions = $permissions;
+		return self::$categoryPermissions;
+	}
+
+	/**
+	 * Get a list of categories for a Title, including parent categories
+	 * (i.e. parents of any sub-categories)
+	 *
+	 * @param Title $title Title to get categories for
+	 * @return array Array of category DB keys like ['My_Category','Your_Category']
+	 * @since 0.9
+	 */
+	public static function getTitleCategoryList( Title $title ) {
+		return array_unique( self::flattenCategoryTree( $title->getParentCategoryTree() ) );
+	}
+
+	/**
+	 * Flattens output of Title::getParentCategoryTree into an array with just category DB keys
+	 *
+	 * @param Array $categoryTree
+	 * @return array Array of possibly duplicate category DB keys. Example:
+	 *     ['My_Category','My_Category','Your_Category']
+	 * @since 0.9
+	 */
+	public static function flattenCategoryTree( Array $categoryTree ) {
+
+		// array of categories w/o tree structure
+		$categoryNames = [];
+		foreach ( $categoryTree as $cat => $parentCats ) {
+			// Categories are array keys in form Category:My_Category
+			$categoryDBkey = explode( ':', $cat, 2 )[1];
+			if ( count( $parentCats ) > 0 ) {
+				// if there are parent categories, call this function on those categories
+				array_merge( $categoryNames, self::getCategoryListHelper( $parentCats ) );
+			}
+		}
+		return $categoryNames;
+	}
+
+	/**
+	 * Check if a user is allowed to approve a page based upon being listed in the
+	 * page property approvedrevs-approvers
+	 *
+	 * @param User $user
+	 * @param Title $title
+	 * @return bool If user is allowed to approve
+	 * @since 0.9
+	 */
+	public static function userInApproversPageProp( User $user, Title $title ) {
+
+		// init self::$approversFromPageProp if needed
+		if ( self::$approversFromPageProp === null ) {
+			self::$approversFromPageProp = [];
+		}
+		$articleID = $title->getArticleID();
+		// if page props not set for this title, set them
+		if ( !isset( self::$approversFromPageProp[$articleID] ) ) {
+			$dbr = wfGetDB( DB_SLAVE );
+			$approvers = $dbr->selectField(
+				'page_props',
+				'pp_value',
+				[
+					'pp_page' => $title->getArticleID(),
+					'pp_propname' => "approvedrevs-approvers"
+				],
+				__METHOD__
+			);
+
+			if ( $approvers === false ) {
+				self::$approversFromPageProp[$articleID] = [];
+			}
+			else {
+				self::$approversFromPageProp[$articleID] = explode( '|', $approvers );
+			}
+		}
+
+		return in_array( $user->getName(), self::$approversFromPageProp[$articleID] ) );
 	}
 
 	public static function saveApprovedRevIDInDB( $title, $rev_id, $isAutoApprove = true ) {

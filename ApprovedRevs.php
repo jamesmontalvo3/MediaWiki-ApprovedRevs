@@ -23,7 +23,7 @@ if ( !defined( 'MEDIAWIKI' ) ) die();
  * @author Yaron Koren
  */
 
-define( 'APPROVED_REVS_VERSION', '0.8' );
+define( 'APPROVED_REVS_VERSION', '0.9' );
 
 // credits
 $wgExtensionCredits['other'][] = array(
@@ -39,6 +39,7 @@ $wgExtensionCredits['other'][] = array(
 // global variables
 $egApprovedRevsIP = dirname( __FILE__ ) . '/';
 $egApprovedRevsNamespaces = array( NS_MAIN, NS_USER, NS_PROJECT, NS_TEMPLATE, NS_HELP );
+$egApprovedRevsCategoryApprovals = [];
 $egApprovedRevsSelfOwnedNamespaces = array();
 $egApprovedRevsBlankIfUnapproved = false;
 $egApprovedRevsAutomaticApprovals = true;
@@ -59,6 +60,7 @@ $wgAutoloadClasses['SpecialApprovedRevsPage'] = $egApprovedRevsIP . 'includes/Sp
 $wgAutoloadClasses['ApiApprove'] = $egApprovedRevsIP . 'includes/ApiApprove.php';
 $wgAutoloadClasses['ARApproveAction'] = $egApprovedRevsIP . 'includes/AR_ApproveAction.php';
 $wgAutoloadClasses['ARUnapproveAction'] = $egApprovedRevsIP . 'includes/AR_UnapproveAction.php';
+$wgAutoloadClasses['ARParserFunctions'] = $egApprovedRevsIP . 'includes/AR_ParserFunctions.php';
 
 // actions
 $wgActions['approve'] = 'ARApproveAction';
@@ -80,6 +82,7 @@ $wgHooks['BeforeParserFetchTemplateAndtitle'][] = 'ApprovedRevsHooks::setTranscl
 $wgHooks['ArticleDeleteComplete'][] = 'ApprovedRevsHooks::deleteRevisionApproval';
 $wgHooks['MagicWordwgVariableIDs'][] = 'ApprovedRevsHooks::addMagicWordVariableIDs';
 $wgHooks['ParserBeforeTidy'][] = 'ApprovedRevsHooks::handleMagicWords';
+$wgHooks['ParserFirstCallInit'][] = 'ApprovedRevsHooks::registerFunctions';
 $wgHooks['AdminLinks'][] = 'ApprovedRevsHooks::addToAdminLinks';
 $wgHooks['LoadExtensionSchemaUpdates'][] = 'ApprovedRevsHooks::describeDBSchema';
 $wgHooks['EditPage::showEditForm:initial'][] = 'ApprovedRevsHooks::addWarningToEditPage';
