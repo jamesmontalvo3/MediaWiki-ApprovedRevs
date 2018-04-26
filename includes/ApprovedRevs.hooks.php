@@ -710,7 +710,7 @@ class ApprovedRevsHooks {
 	static function registerFunctions( &$parser ) {
 		$parser->setFunctionHook(
 			'set_approvers',
-			[ 'ARParserFunctions', 'renderApprovedRevsApprovers' ],
+			'ARParserFunctions::renderApprovedRevsApprovers',
 			Parser::SFH_OBJECT_ARGS
 		);
 		return true;

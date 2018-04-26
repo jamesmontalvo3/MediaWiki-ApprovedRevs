@@ -30,10 +30,8 @@ class ARParserFunctions {
 	 */
 	public static function renderApprovedRevsApprovers( Parser &$parser, PPFrame $frame, Array $args ) {
 
-		$name = trim( array_shift( $args ) ); // remove first element, since this is the counter name
-
 		$parserOutput = $parser->getOutput();
-
+		$output = '';
 		foreach ( $args as $arg ) {
 			$argInfo = explode( '=', $frame->expand( $arg ), 2 );
 			if ( count( $argInfo ) < 2 ) {
@@ -41,16 +39,16 @@ class ARParserFunctions {
 			}
 			$argName = strtolower( trim( $argInfo[0] ) );
 			$argValue = trim( $argInfo[1] );
-			$output = '';
 
 			if ( $argValue === '' ) {
 				continue; // no value = nothing to do
 			}
 			else {
 				// sanitize $argValue: explode on comma, trim each element, implode on comma again
-				$argValue = implode( ',' array_map( 'trim', explode( ',', $argValue ) ) );
+				$argValue = implode( ',', array_map( 'trim', explode( ',', $argValue ) ) );
 			}
-			elseif ( $argName === 'user' || $argName === 'users' ) {
+
+			if ( $argName === 'user' || $argName === 'users' ) {
 				// Note: comma is a valid username character, but we're
 				// accepting it as a delimiter anyway since characters invalid
 				// in usernames are not ideal.
