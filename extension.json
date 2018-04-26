@@ -58,6 +58,7 @@
 	"AutoloadClasses": {
 		"ApprovedRevs": "includes/ApprovedRevs_body.php",
 		"ApprovedRevsHooks": "includes/ApprovedRevs.hooks.php",
+		"ARParserFunctions": "includes/AR_ParserFunctions.php",
 		"SpecialApprovedRevs": "includes/SpecialApprovedRevs.php",
 		"SpecialApprovedRevsPage": "includes/SpecialApprovedRevsPage.php",
 		"ApiApprove": "includes/ApiApprove.php",
@@ -150,7 +151,6 @@
 	"config": {
 		"_prefix": "eg",
 		"ApprovedRevsNamespaces": [ 0, 2, 4, 10, 12 ],
-		"ApprovedRevsCategoryApprovals": [],
 		"ApprovedRevsSelfOwnedNamespaces": [],
 		"ApprovedRevsBlankIfUnapproved": false,
 		"ApprovedRevsAutomaticApprovals": true,
