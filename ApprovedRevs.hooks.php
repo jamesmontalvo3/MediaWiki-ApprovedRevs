@@ -120,7 +120,7 @@ class ApprovedRevsHooks {
 		}
 
 		// Save approval without logging.
-		ApprovedRevs::saveApprovedRevIDInDB( $title, $revision->getID() );
+		ApprovedRevs::saveApprovedRevIDInDB( $title, $revision->getID(), 'auto' );
 		return true;
 	}
 
@@ -467,40 +467,57 @@ class ApprovedRevsHooks {
 		}
 
 		ApprovedRevs::addCSS();
-		if ( $revisionID == $article->getLatest() ) {
-			$text = Xml::element(
-				'span',
-				array( 'class' => 'approvedAndLatestMsg' ),
-				wfMessage( 'approvedrevs-approvedandlatest' )->text()
-			);
-		} else {
-			$text = wfMessage( 'approvedrevs-notlatest' )->parse();
-
-			if ( function_exists( 'MediaWiki\MediaWikiServices::getLinkRenderer' ) ) {
-				$linkRenderer = MediaWikiServices::getInstance()->getLinkRenderer();
+		$text = "";
+		if ( ApprovedRevs::checkPermission( $title, "viewlinktolatest" ) ) {
+			if ( $revisionID == $article->getLatest() ) {
+				$text .= Xml::element(
+					'span',
+					array( 'class' => 'approvedAndLatestMsg' ),
+					wfMessage( 'approvedrevs-approvedandlatest' )->text()
+				);
 			} else {
-				$linkRenderer = null;
-			}
-			$text .= ' ' . ApprovedRevs::makeLink(
-				$linkRenderer,
-				$title,
-				wfMessage( 'approvedrevs-viewlatestrev' )->parse(),
-				array(),
-				array( 'oldid' => $article->getLatest() )
-			);
+				$text .= wfMessage( 'approvedrevs-notlatest' )->parse();
 
-			$text = Xml::tags(
-				'span',
-				array( 'class' => 'notLatestMsg' ),
-				$text
-			);
+				if ( function_exists( 'MediaWiki\MediaWikiServices::getLinkRenderer' ) ) {
+					$linkRenderer = MediaWikiServices::getInstance()->getLinkRenderer();
+				} else {
+					$linkRenderer = null;
+				}
+				$text .= ' ' . ApprovedRevs::makeLink(
+					$linkRenderer,
+					$title,
+					wfMessage( 'approvedrevs-viewlatestrev' )->parse(),
+					array(),
+					array( 'oldid' => $article->getLatest() )
+				);
+
+				$text = Xml::tags(
+					'span',
+					array( 'class' => 'notLatestMsg' ),
+					$text
+				);
+			}
 		}
 
-		global $wgOut;
-		if ( $wgOut->getSubtitle() != '' ) {
-			$wgOut->addSubtitle( '<br />' . $text );
-		} else {
-			$wgOut->setSubtitle( $text );
+		if ( ApprovedRevs::checkPermission( $title, "viewapprover" ) ) {
+			$revisionUser = ApprovedRevs::getApprovedRevUser( $title );
+			if ( $revisionUser ) {
+				$text .= Xml::openElement( 'span', array( 'class' => 'approvingUser' ) ) .
+					  wfMessage(
+						  'approvedrevs-approver',
+						  Linker::userLink( $revisionUser->getId(), $revisionUser->getName() )
+					  )->parse() .
+					  Xml::closeElement( 'span' );
+			}
+		}
+
+		if ( $text !== "" ) {
+			global $wgOut;
+			if ( $wgOut->getSubtitle() != '' ) {
+				$wgOut->addSubtitle( '<br />' . $text );
+			} else {
+				$wgOut->setSubtitle( $text );
+			}
 		}
 
 		return false;
@@ -831,28 +848,27 @@ class ApprovedRevsHooks {
 		$dir = __DIR__ . "/maintenance";
 
 		// DB updates
-		// For now, there's just a single SQL file for all DB types.
 		if ( $updater === null ) {
 			global $wgExtNewTables, $wgDBtype;
-			// if ( $wgDBtype == 'mysql' ) {
-				$wgExtNewTables[] = array(
-					'approved_revs', "$dir/ApprovedRevs.sql"
-				);
-				$wgExtNewTables[] = array(
-					'approved_revs_files', "$dir/ApprovedRevs_Files.sql"
-				);
-			// }
+			$wgExtNewTables[] = array(
+				'approved_revs', "$dir/ApprovedRevs.sql"
+			);
+			$wgExtNewTables[] = array(
+				'approved_revs_files', "$dir/ApprovedRevs_Files.sql"
+			);
 		} else {
-			// if ( $updater->getDB()->getType() == 'mysql' ) {
-				$updater->addExtensionUpdate( array(
-						'addTable', 'approved_revs', "$dir/ApprovedRevs.sql",
-						true
-					) );
-				$updater->addExtensionUpdate( array(
-						'addTable', 'approved_revs_files',
-						"$dir/ApprovedRevs_Files.sql", true
-					) );
-			// }
+			$updater->addExtensionUpdate( array(
+				'addTable', 'approved_revs', "$dir/ApprovedRevs.sql",
+				true
+			) );
+			$updater->addExtensionUpdate( array(
+				'addTable', 'approved_revs_files',
+				"$dir/ApprovedRevs_Files.sql", true
+			) );
+			$updater->addExtensionUpdate( array(
+				'addField', 'approved_revs', 'appr_user',
+				"$dir/patch-appr_user.sql", true
+			) );
 		}
 		return true;
 	}
