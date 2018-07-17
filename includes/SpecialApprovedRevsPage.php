@@ -156,7 +156,8 @@ class SpecialApprovedRevsPage extends QueryPage {
 						'LEFT OUTER JOIN', 'ar.page_id=pp_page'
 					),
 				),
-				'conds' => $mainCondsString
+				'conds' => $mainCondsString,
+				'options' => [ 'DISTINCT' ]
 			);
 		} elseif ( $this->mMode == 'unapproved' ) {
 			return array(
@@ -177,7 +178,8 @@ class SpecialApprovedRevsPage extends QueryPage {
 						'LEFT OUTER JOIN', 'ar.page_id=pp_page'
 					),
 				),
-				'conds' => "ar.page_id IS NULL AND ( $mainCondsString )"
+				'conds' => "ar.page_id IS NULL AND ( $mainCondsString )",
+				'options' => [ 'DISTINCT' ]
 			);
 		} elseif ( $this->mMode == 'invalid' ) {
 			return array(
@@ -198,7 +200,8 @@ class SpecialApprovedRevsPage extends QueryPage {
 						'LEFT OUTER JOIN', 'ar.page_id=pp_page'
 					),
 				),
-				'conds' => $mainCondsString
+				'conds' => $mainCondsString,
+				'options' => [ 'DISTINCT' ]
 			);
 		} else { // 'approved revision is not latest'
 			return array(
@@ -220,7 +223,8 @@ class SpecialApprovedRevsPage extends QueryPage {
 						'LEFT OUTER JOIN', 'ar.page_id=pp_page'
 					),
 				),
-				'conds' => "p.page_latest != ar.rev_id AND ( $mainCondsString )"
+				'conds' => "p.page_latest != ar.rev_id AND ( $mainCondsString )",
+				'options' => [ 'DISTINCT' ]
 			);
 		}
 	}
