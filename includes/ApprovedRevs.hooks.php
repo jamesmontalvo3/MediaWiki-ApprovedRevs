@@ -712,6 +712,7 @@ class ApprovedRevsHooks {
 			$general_section->addRow( $extensions_row );
 		}
 		$extensions_row->addItem( ALItem::newFromSpecialPage( 'ApprovedRevs' ) );
+		$extensions_row->addItem( ALItem::newFromSpecialPage( 'ApprovedFiles' ) );
 		return true;
 	}
 

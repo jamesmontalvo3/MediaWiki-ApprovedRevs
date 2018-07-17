@@ -16,20 +16,24 @@ class SpecialApprovedFiles extends SpecialPage {
 	}
 
 	function execute( $query ) {
+		$request = $this->getRequest();
 
 		ApprovedRevs::addCSS();
 		$this->setHeaders();
+		list( $limit, $offset ) = $request->getLimitOffset();
 
-		$rep = new SpecialApprovedFilesQueryPage(
-			$this->getRequest()->getVal( 'show' )
-		);
+		$mode = $request->getVal( 'show' );
+		$rep = new SpecialApprovedFilesPage( $mode );
 
-		return $rep->execute( $query );
-
+		if ( method_exists( $rep, 'execute' ) ) {
+			return $rep->execute( $query );
+		} else {
+			return $rep->doQuery( $offset, $limit );
+		}
 	}
 
 	protected function getGroupName() {
 		return 'pages';
 	}
-
 }
+
