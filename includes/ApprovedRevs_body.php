@@ -379,4 +379,123 @@ class ApprovedRevs {
 		}
 	}
 
+
+
+
+
+	public static function setApprovedFileInDB ( $title, $timestamp, $sha1 ) {
+
+		$parser = new Parser();
+		$parser->setTitle( $title );
+
+		$dbr = wfGetDB( DB_MASTER );
+		$fileTitle = $title->getDBkey();
+		$oldFileTitle = $dbr->selectField(
+			'approved_revs_files', 'file_title',
+			array( 'file_title' => $fileTitle )
+		);
+		if ( $oldFileTitle ) {
+			$dbr->update( 'approved_revs_files',
+				array(
+					'approved_timestamp' => $timestamp,
+					'approved_sha1' => $sha1
+				), // update fields
+				array( 'file_title' => $fileTitle )
+			);
+		} else {
+			$dbr->insert( 'approved_revs_files',
+				array(
+					'file_title' => $fileTitle,
+					'approved_timestamp' => $timestamp,
+					'approved_sha1' => $sha1
+				)
+			);
+		}
+		// Update "cache" in memory
+		self::$mApprovedFileInfo[$fileTitle] = array( $timestamp, $sha1 );
+
+		$log = new LogPage( 'approval' );
+
+		$imagepage = ImagePage::newFromID( $title->getArticleID() );
+		$displayedFileUrl = $imagepage->getDisplayedFile()->getFullURL();
+
+		$revisionAnchorTag = Xml::element(
+			'a',
+			array(
+				'href' => $displayedFileUrl,
+				'title' => 'unique identifier: ' . $sha1
+			), substr( $sha1, 0, 8 ) // show first 6 characters of sha1
+		);
+		$logParams = array( $revisionAnchorTag );
+		$log->addEntry(
+			'approve',
+			$title,
+			'',
+			$logParams
+		);
+
+		wfRunHooks(
+			'ApprovedRevsFileRevisionApproved',
+			array( $parser, $title, $timestamp, $sha1 )
+		);
+
+	}
+
+	public static function unsetApprovedFileInDB ( $title ) {
+
+		$parser = new Parser();
+		$parser->setTitle( $title );
+
+		$fileTitle = $title->getDBkey();
+
+		$dbr = wfGetDB( DB_MASTER );
+		$dbr->delete( 'approved_revs_files',
+			array( 'file_title' => $fileTitle )
+		);
+		// the unapprove page method had LinksUpdate and Parser
+		// objects here, but the page text has not changed at all with
+		// a file approval, so I don't think those are necessary.
+
+		$log = new LogPage( 'approval' );
+		$log->addEntry(
+			'unapprove',
+			$title,
+			''
+		);
+
+		wfRunHooks(
+			'ApprovedRevsFileRevisionUnapproved', array( $parser, $title )
+		);
+
+	}
+
+	/**
+	 *  Pulls from DB table approved_revs_files which revision of a
+	 *  file, if any besides most recent, should be used as the
+	 *  approved revision.
+	 **/
+	public static function getApprovedFileInfo ( $fileTitle ) {
+
+		if ( isset( self::$mApprovedFileInfo[ $fileTitle->getDBkey() ] ) ) {
+			return self::$mApprovedFileInfo[ $fileTitle->getDBkey() ];
+		}
+
+		$dbr = wfGetDB( DB_SLAVE );
+		$row = $dbr->selectRow(
+			'approved_revs_files', // select from table
+			array( 'approved_timestamp', 'approved_sha1' ),
+			array( 'file_title' => $fileTitle->getDBkey() )
+		);
+		if ( $row ) {
+			$return = array( $row->approved_timestamp, $row->approved_sha1 );
+		}
+		else {
+			$return = array( false, false );
+		}
+
+		self::$mApprovedFileInfo[ $fileTitle->getDBkey() ] = $return;
+		return $return;
+
+	}
+
 }

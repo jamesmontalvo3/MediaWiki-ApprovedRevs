@@ -121,26 +121,32 @@ class SpecialApprovedFilesPage extends QueryPage {
 	 */
 	public function getQueryInfo() {
 
-		$tables = array(
+		$tables = [
 			'ar' => 'approved_revs_files',
 			'im' => 'image',
 			'p' => 'page',
-		);
+			'pp' => 'page_props',
+		];
 
-		$fields = array(
+		$fields = [
 			'im.img_name AS title',
 			'ar.approved_sha1 AS approved_sha1',
 			'ar.approved_timestamp AS approved_ts',
 			'im.img_sha1 AS latest_sha1',
 			'im.img_timestamp AS latest_ts',
-		);
+		];
 
-		$conds = array();
+		$conds = [];
 
-		$join_conds = array(
-			'im' => array( 'LEFT OUTER JOIN', 'ar.file_title=im.img_name' ),
-			'p'  => array( 'LEFT OUTER JOIN', 'im.img_name=p.page_title' ),
-		);
+		$join_conds = [
+			'im' => [ 'LEFT OUTER JOIN', 'ar.file_title=im.img_name' ],
+			'p'  => [ 'LEFT OUTER JOIN', 'im.img_name=p.page_title' ],
+			'pp' => [ 'LEFT OUTER JOIN', 'ar.page_id=pp_page' ],
+		];
+
+		$pagePropsConditions = "( (pp_propname = 'approvedrevs' AND pp_value = 'y') " .
+			"OR pp_propname = 'approvedrevs-approver-users' " .
+			"OR pp_propname = 'approvedrevs-approver-groups' )";
 
 		#
 		#	ALLFILES: list all approved pages
@@ -156,33 +162,17 @@ class SpecialApprovedFilesPage extends QueryPage {
 		#
 		} elseif ( $this->mMode == 'unapproved' ) {
 
-			$tables['c'] = 'categorylinks';
-			$join_conds['c'] = [ 'LEFT OUTER JOIN', 'p.page_id=c.cl_from' ];
 			$join_conds['im'] = [ 'RIGHT OUTER JOIN', 'ar.file_title=im.img_name' ];
 
-			// FIXME: function doesn't exist
-			$perms = ApprovedRevs::getPermissions();
+			// FIXME: This needs to be updated to ApprovedRevs::getApprovableNamespaces()
+			//        after [1] is merged.
+			// [1] https://gerrit.wikimedia.org/r/#/c/mediawiki/extensions/ApprovedRevs/+/445560/
+			global $egApprovedRevsNamespaces;
 
 			// if all files are not approvable then need to find files matching
-			// page and category permissions
-			if ( ! in_array( NS_FILE, array_keys( $perms['Namespace Permissions'] ) ) ) {
-
-				// FIXME: getApprovabilityStringsForDB doesn't exist
-				list( $ns, $cat, $pg ) = ApprovedRevs::getApprovabilityStringsForDB();
-
-				$pageCatConditions = array();
-				if ( $cat !== '' ) {
-					$pageCatConditions[] = "c.cl_to IN ($cat)";
-				}
-				if ( $pg  !== '' ) {
-					$pageCatConditions[] = "p.page_id IN ($pg)";
-				}
-
-				// if there were any page or category conditions, add to $conds
-				if ( count( $pageCatConditions ) > 0 ) {
-					$conds[] = '(' . implode( ' OR ', $pageCatConditions ) . ')';
-				}
-
+			// __APPROVEDREVS__ and {{#approvable_by: ... }} permissions
+			if ( ! in_array( NS_FILE, $egApprovedRevsNamespaces ) ) {
+				$conds[] = $pagePropsConditions;
 			}
 
 			$conds['ar.file_title'] = null;
@@ -197,28 +187,21 @@ class SpecialApprovedFilesPage extends QueryPage {
 			$join_conds['c'] = [ 'LEFT OUTER JOIN', 'p.page_id=c.cl_from' ];
 			$join_conds['im'] = [ 'LEFT OUTER JOIN', 'ar.file_title=im.img_name' ];
 
-			// FIXME: function doesn't exist
-			$perms = ApprovedRevs::getPermissions();
-			if ( in_array( NS_FILE, array_keys( $perms['Namespace Permissions'] ) ) ) {
+			// FIXME: This needs to be updated to ApprovedRevs::getApprovableNamespaces()
+			//        after [1] is merged.
+			// [1] https://gerrit.wikimedia.org/r/#/c/mediawiki/extensions/ApprovedRevs/+/445560/
+			global $egApprovedRevsNamespaces;
 
-				// if all files approvable should break out of
-				// this...since none can be invalid if they're all
-				// approvable using this impossible condition, hack
+			if ( in_array( NS_FILE, $egApprovedRevsNamespaces ) ) {
+
+				// if all files are approvable, no files should have invalid
+				// approvals. Below is an impossible condition that prevents any
+				// results from being returned.
 				$conds[] = 'p.page_namespace=1 AND p.page_namespace=2';
 			}
 			else {
 
-				// FIXME: getApprovabilityStringsForDB doesn't exist
-				list( $ns, $cat, $pg ) = ApprovedRevs::getApprovabilityStringsForDB();
-
-				if ( $cat !== '' ) {
-					$conds[] = "p.page_id NOT IN " .
-						"(SELECT DISTINCT cl_from FROM ".
-						"categorylinks WHERE cl_to IN ($cat))";
-				}
-				if ( $pg  !== '' ) {
-					$conds[] = "p.page_id NOT IN ($pg)";
-				}
+				$conds[] = "( pp_propname IS NULL OR NOT $pagePropsConditions )";;
 
 			}
 
