@@ -54,8 +54,11 @@ $wgExtensionMessagesFiles['ApprovedRevsMagic'] = $egApprovedRevsIP . 'ApprovedRe
 $wgAutoloadClasses['ApprovedRevs'] = $egApprovedRevsIP . 'includes/ApprovedRevs_body.php';
 $wgAutoloadClasses['ApprovedRevsHooks'] = $egApprovedRevsIP . 'includes/ApprovedRevs.hooks.php';
 $wgSpecialPages['ApprovedRevs'] = 'SpecialApprovedRevs';
+$wgSpecialPages['ApprovedFiles'] = 'SpecialApprovedFiles';
 $wgAutoloadClasses['SpecialApprovedRevs'] = $egApprovedRevsIP . 'includes/SpecialApprovedRevs.php';
 $wgAutoloadClasses['SpecialApprovedRevsPage'] = $egApprovedRevsIP . 'includes/SpecialApprovedRevsPage.php';
+$wgAutoloadClasses['SpecialApprovedFiles'] = $egApprovedRevsIP . 'includes/SpecialApprovedFiles.php';
+$wgAutoloadClasses['SpecialApprovedFilesPage'] = $egApprovedRevsIP . 'includes/SpecialApprovedFilesPage.php';
 $wgAutoloadClasses['ApiApprove'] = $egApprovedRevsIP . 'includes/ApiApprove.php';
 $wgAutoloadClasses['ARApproveAction'] = $egApprovedRevsIP . 'includes/AR_ApproveAction.php';
 $wgAutoloadClasses['ARUnapproveAction'] = $egApprovedRevsIP . 'includes/AR_UnapproveAction.php';
@@ -88,6 +91,15 @@ $wgHooks['ArticleViewHeader'][] = 'ApprovedRevsHooks::setArticleHeader';
 $wgHooks['ArticleViewHeader'][] = 'ApprovedRevsHooks::displayNotApprovedHeader';
 $wgHooks['OutputPageBodyAttributes'][] = 'ApprovedRevsHooks::addBodyClass';
 $wgHooks['wgQueryPages'][] = 'ApprovedRevsHooks::onwgQueryPages';
+
+// Approved File Revisions
+$wgHooks['UnknownAction'][] = 'ApprovedRevsHooks::setFileAsApproved';
+$wgHooks['UnknownAction'][] = 'ApprovedRevsHooks::unsetFileAsApproved';
+$wgHooks['ImagePageFileHistoryLine'][] = 'ApprovedRevsHooks::onImagePageFileHistoryLine';
+$wgHooks['BeforeParserFetchFileAndTitle'][] = 'ApprovedRevsHooks::modifyFileLinks';
+$wgHooks['ImagePageFindFile'][] = 'ApprovedRevsHooks::onImagePageFindFile';
+$wgHooks['FileDeleteComplete'][] = 'ApprovedRevsHooks::onFileDeleteComplete';
+
 
 // logging
 $wgLogTypes['approval'] = 'approval';

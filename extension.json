@@ -41,7 +41,8 @@
 		"approval/unapprove": "approvedrevs-unapproveaction"
 	},
 	"SpecialPages": {
-		"ApprovedRevs": "SpecialApprovedRevs"
+		"ApprovedRevs": "SpecialApprovedRevs",
+		"ApprovedFiles": "SpecialApprovedFiles"
 	},
 	"APIModules": {
 		"approve": "ApiApprove"
@@ -60,6 +61,10 @@
 		"ApprovedRevsHooks": "includes/ApprovedRevs.hooks.php",
 		"SpecialApprovedRevs": "includes/SpecialApprovedRevs.php",
 		"SpecialApprovedRevsPage": "includes/SpecialApprovedRevsPage.php",
+
+		"SpecialApprovedFiles": "includes/SpecialApprovedFiles.php",
+		"SpecialApprovedFilesPage": "includes/SpecialApprovedFilesPage.php",
+
 		"ApiApprove": "includes/ApiApprove.php",
 		"ARApproveAction": "includes/AR_ApproveAction.php",
 		"ARUnapproveAction": "includes/AR_UnapproveAction.php"
@@ -139,6 +144,22 @@
 		],
 		"OutputPageBodyAttributes": [
 			"ApprovedRevsHooks::addBodyClass"
+		],
+		"UnknownAction": [
+			"ApprovedRevsHooks::setFileAsApproved",
+			"ApprovedRevsHooks::unsetFileAsApproved"
+		],
+		"ImagePageFileHistoryLine": [
+			"ApprovedRevsHooks::onImagePageFileHistoryLine"
+		],
+		"BeforeParserFetchFileAndTitle": [
+			"ApprovedRevsHooks::modifyFileLinks"
+		],
+		"ImagePageFindFile": [
+			"ApprovedRevsHooks::onImagePageFindFile"
+		],
+		"FileDeleteComplete": [
+			"ApprovedRevsHooks::onFileDeleteComplete"
 		],
 		"wgQueryPages": [
 			"ApprovedRevsHooks::onwgQueryPages"

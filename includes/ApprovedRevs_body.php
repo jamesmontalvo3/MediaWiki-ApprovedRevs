@@ -161,6 +161,40 @@ class ApprovedRevs {
 		return $isApprovable;
 	}
 
+	public static function fileIsApprovable ( Title $title ) {
+
+		// title doesn't exist, not approvable
+		if ( ! $title->exists() ) {
+			return $title->isApprovable = false;
+		}
+
+		// Check if ApprovedRevs::$permissions defines approvals for $title
+		if ( self::titleInApprovedRevsPermissions( $title ) ) {
+			$title->isApprovable = true;
+			return true;
+		}
+
+		// if a file already has an approval, it must be considered approvable
+		// in order for the user to be able to view/modify approvals. Though
+		// this wasn't the case on versions of ApprovedRevs before v1.0, it is
+		// necessary now since approvability can change much more easily
+
+		// if title in approved_revs_files table
+		list( $timestamp, $sha1 ) =
+			self::getApprovedFileInfo( $title );
+		if ( $timestamp !== false ) {
+			// only approvable because it already has an approved rev, not
+			// because it is in ApprovedRevs::$permissions
+			$title->isApprovable = true;
+			return true;
+		}
+		else {
+			$title->isApprovable = false;
+			return false;
+		}
+
+	}
+
 	public static function checkPermission( User $user, Title $title, $permission ) {
 		return ( $title->userCan( $permission, $user ) || $user->isAllowed( $permission ) );
 	}
