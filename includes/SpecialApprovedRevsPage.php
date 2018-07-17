@@ -122,7 +122,9 @@ class SpecialApprovedRevsPage extends QueryPage {
 	function getQueryInfo() {
 		global $egApprovedRevsNamespaces;
 
-		$mainCondsString = "( pp_propname = 'approvedrevs' AND pp_value = 'y' )";
+		$mainCondsString = "( pp_propname = 'approvedrevs' AND pp_value = 'y' " .
+			"OR pp_propname = 'approvedrevs-approver-users' " .
+			"OR pp_propname = 'approvedrevs-approver-groups' )";
 		if ( $this->mMode == 'invalid' ) {
 			$mainCondsString = "( pp_propname IS NULL OR NOT $mainCondsString )";
 		}
@@ -241,7 +243,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		if( !ApprovedRevs::pageIsApprovable( $title ) && $this->mMode !== 'invalid' ) {
 			return false;
 		}
-          
+
 		$context = $skin->getContext();
 		$user = $context->getUser();
 		$out = $context->getOutput();
