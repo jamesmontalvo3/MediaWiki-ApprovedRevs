@@ -63,7 +63,9 @@
 		"SpecialApprovedRevsPage": "includes/SpecialApprovedRevsPage.php",
 		"ApiApprove": "includes/ApiApprove.php",
 		"ARApproveAction": "includes/AR_ApproveAction.php",
-		"ARUnapproveAction": "includes/AR_UnapproveAction.php"
+		"ARUnapproveAction": "includes/AR_UnapproveAction.php",
+		"ARApproveFileAction": "includes/AR_ApproveFileAction.php",
+		"ARUnapproveFileAction": "includes/AR_UnapproveFileAction.php"
 	},
 	"ResourceModules": {
 		"ext.ApprovedRevs": {
@@ -76,7 +78,9 @@
 	},
 	"Actions": {
 		"approve": "ARApproveAction",
-		"unapprove": "ARUnapproveAction"
+		"unapprove": "ARUnapproveAction",
+		"approvefile": "ARApproveFileAction",
+		"unapprovefile": "ARUnapproveFileAction"
 	},
 	"Hooks": {
 		"ArticleEditUpdates": [
@@ -143,6 +147,18 @@
 		],
 		"OutputPageBodyAttributes": [
 			"ApprovedRevsHooks::addBodyClass"
+		],
+		"ImagePageFileHistoryLine": [
+			"ApprovedRevsHooks::onImagePageFileHistoryLine"
+		],
+		"BeforeParserFetchFileAndTitle": [
+			"ApprovedRevsHooks::modifyFileLinks"
+		],
+		"ImagePageFindFile": [
+			"ApprovedRevsHooks::onImagePageFindFile"
+		],
+		"FileDeleteComplete": [
+			"ApprovedRevsHooks::onFileDeleteComplete"
 		],
 		"wgQueryPages": [
 			"ApprovedRevsHooks::onwgQueryPages"

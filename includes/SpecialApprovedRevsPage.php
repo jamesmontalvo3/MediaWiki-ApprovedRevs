@@ -10,6 +10,26 @@ class SpecialApprovedRevsPage extends QueryPage {
 
 	protected $mMode;
 
+	/**
+	 * @var Array $mHeaderLinks: pairs mode with messages. E.g. mode "allfiles"
+	 *      used to generate a header link with query string having "show=allfiles"
+	 *      and link text of "All files with an approved revision" (in English).
+	 */
+	protected $mHeaderLinks = [
+
+		// for approved page revs
+		'approvedrevs-notlatestpages'     => '',
+		'approvedrevs-unapprovedpages'    => 'unapproved',
+		'approvedrevs-approvedpages'      => 'all',
+		'approvedrevs-invalidpages'       => 'invalid',
+
+		// for approved file revs
+		'approvedrevs-notlatestpages'     => 'notlatestfiles',
+		'approvedrevs-unapprovedpages'    => 'unapprovedfiles',
+		'approvedrevs-approvedpages'      => 'allfiles',
+		'approvedrevs-invalidpages'       => 'invalidfiles',
+	];
+
 	public function __construct( $mode ) {
 		if ( $this instanceof SpecialPage ) {
 			parent::__construct( 'ApprovedRevs' );
@@ -26,86 +46,55 @@ class SpecialApprovedRevsPage extends QueryPage {
 	function isSyndicated() { return false; }
 
 	function getPageHeader() {
-		// show the names of the three lists of pages, with the one
+
+		// show the names of the four lists of pages, with the one
 		// corresponding to the current "mode" not being linked
-		$approvedPagesTitle = SpecialPage::getTitleFor( 'ApprovedRevs' );
-		$navLine = wfMessage( 'approvedrevs-view' )->parse() . ' ';
-
-		if ( $this->mMode == '' ) {
-			$navLine .= Xml::element( 'strong',
-				null,
-				wfMessage( 'approvedrevs-notlatestpages' )->text()
-			);
-		} else {
-			$navLine .= Xml::element( 'a',
-				array( 'href' => $approvedPagesTitle->getLocalURL() ),
-				wfMessage( 'approvedrevs-notlatestpages' )->text()
-			);
+		$navLinks = [];
+		foreach ( $this->mHeaderLinks as $msg => $queryParam ) {
+			$navLinks[] = $this->createHeaderLink( $msg, $queryParam );
 		}
 
-		$navLine .= ' | ';
+		$navLine = wfMessage( 'approvedrevs-view' )->text() . ' ' . implode(' | ', $navLinks);
+		$header = Xml::tags( 'p', null, $navLine ) . "\n";
 
-		if ( $this->mMode == 'all' ) {
-			$navLine .= Xml::element( 'strong',
-				null,
-				wfMessage( 'approvedrevs-approvedpages' )->text()
-			);
-		} else {
-			$navLine .= Xml::element( 'a',
-				array( 'href' => $approvedPagesTitle->getLocalURL( array( 'show' => 'all' ) ) ),
-				wfMessage( 'approvedrevs-approvedpages' )->text()
+		if ( $this->mMode == 'invalid' || $this->mMode == 'invalidfiles' ) {
+			$header .= Xml::tags(
+				'p', array( 'style' => 'font-style:italic;' ),
+				wfMessage( 'approvedrevs-invalid-description' )->parse()
 			);
 		}
+		return Xml::tags(
+			'div', array( 'class' => 'specialapprovedrevs-header' ), $header
+		);
 
-		$navLine .= ' | ';
+	}
 
-		if ( $this->mMode == 'unapproved' ) {
-			$navLine .= Xml::element( 'strong',
+	/**
+	 * Generate links for header. For current mode, generate non-link bold text.
+	 */
+	public function createHeaderLink( $msg, $queryParam ) {
+		$approvedPagesTitle = SpecialPage::getTitleFor( $this->getName() );
+		if ( $this->mMode == $queryParam ) {
+			return Xml::element( 'strong',
 				null,
-				wfMessage( 'approvedrevs-unapprovedpages' )->text()
+				wfMessage( $msg )->text()
 			);
 		} else {
-			$navLine .= Xml::element( 'a',
-				array( 'href' => $approvedPagesTitle->getLocalURL( array( 'show' => 'unapproved' ) ) ),
-				wfMessage( 'approvedrevs-unapprovedpages' )->text()
+			$show = ( $queryParam == '' ) ? array() : array( 'show' => $queryParam );
+			return Xml::element( 'a',
+				array( 'href' => $approvedPagesTitle->getLocalURL( $show ) ),
+				wfMessage( $msg )->text()
 			);
 		}
-
-		$navLine .= ' | ';
-
-		if ( $this->mMode == 'invalid' ) {
-			$navLine .= Xml::element( 'strong',
-				null,
-				wfMessage( 'approvedrevs-invalidpages' )->text()
-			);
-		} else {
-			$navLine .= Xml::element( 'a',
-				array( 'href' => $approvedPagesTitle->getLocalURL( array( 'show' => 'invalid' ) ) ),
-				wfMessage( 'approvedrevs-invalidpages' )->text()
-			);
-		}
-
-		$navLine .= "\n";
-
-		return Xml::tags( 'p', null, $navLine ) . "\n";
 	}
 
 	/**
 	 * Set parameters for standard navigation links.
+	 * i.e. Applies mode to next/prev links when paging through list, etc.
 	 */
 	function linkParameters() {
-		$params = array();
-
-		if ( $this->mMode == 'all' ) {
-			$params['show'] = 'all';
-		} elseif ( $this->mMode == 'unapproved' ) {
-			$params['show'] = 'unapproved';
-		} elseif ( $this->mMode == 'invalid' ) {
-			$params['show'] = 'invalid';
-		} else { // 'approved revision not the latest' pages
-		}
-
-		return $params;
+		// optionally could validate $this->mMode against $this->mHeaderLinks
+		return $this->mMode == '' ? array() : array( 'show' => $this->mMode );
 	}
 
 	function getPageFooter() {
@@ -115,11 +104,26 @@ class SpecialApprovedRevsPage extends QueryPage {
 		return 'p.page_namespace = ' . $ns;
 	}
 
+	function getQueryInfo() {
+
+		// SQL for page revision approvals versus file revision approvals is
+		// significantly different. Easier to follow if broken into two functions.
+		if ( in_array(
+			$this->mMode,
+			array( 'notlatestfiles', 'unapprovedfiles', 'allfiles', 'invalidfiles' )
+		) ) {
+			return $this->getQueryInfoFileApprovals();
+		}
+		else {
+			return $this->getQueryInfoPageApprovals();
+		}
+	}
+
 	/**
 	 * (non-PHPdoc)
 	 * @see QueryPage::getSQL()
 	 */
-	function getQueryInfo() {
+	public function getQueryInfoPageApprovals() {
 		$approvedRevsNamespaces = ApprovedRevs::getApprovableNamespaces();
 
 		$mainCondsString = "( pp_propname = 'approvedrevs' AND pp_value = 'y' " .
@@ -157,7 +161,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 					),
 				),
 				'conds' => $mainCondsString,
-				'options' => [ 'DISTINCT' ]
+				'options' => array( 'DISTINCT' )
 			);
 		} elseif ( $this->mMode == 'unapproved' ) {
 			return array(
@@ -179,7 +183,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 					),
 				),
 				'conds' => "ar.page_id IS NULL AND ( $mainCondsString )",
-				'options' => [ 'DISTINCT' ]
+				'options' => array( 'DISTINCT' )
 			);
 		} elseif ( $this->mMode == 'invalid' ) {
 			return array(
@@ -201,7 +205,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 					),
 				),
 				'conds' => $mainCondsString,
-				'options' => [ 'DISTINCT' ]
+				'options' => array( 'DISTINCT' )
 			);
 		} else { // 'approved revision is not latest'
 			return array(
@@ -224,9 +228,117 @@ class SpecialApprovedRevsPage extends QueryPage {
 					),
 				),
 				'conds' => "p.page_latest != ar.rev_id AND ( $mainCondsString )",
-				'options' => [ 'DISTINCT' ]
+				'options' => array( 'DISTINCT' )
 			);
 		}
+	}
+
+	/**
+	 * (non-PHPdoc)
+	 * @see QueryPage::getSQL()
+	 */
+	public function getQueryInfoFileApprovals() {
+
+		$tables = array(
+			'ar' => 'approved_revs_files',
+			'im' => 'image',
+			'p' => 'page',
+			'pp' => 'page_props',
+		);
+
+		$fields = array(
+			'im.img_name AS title',
+			'ar.approved_sha1 AS approved_sha1',
+			'ar.approved_timestamp AS approved_ts',
+			'im.img_sha1 AS latest_sha1',
+			'im.img_timestamp AS latest_ts',
+		);
+
+		$conds = array();
+
+		$join_conds = array(
+			'im' => array( 'LEFT OUTER JOIN', 'ar.file_title=im.img_name' ),
+			'p'  => array( 'LEFT OUTER JOIN', 'im.img_name=p.page_title' ),
+			'pp' => array( 'LEFT OUTER JOIN', 'ar.page_id=pp_page' ),
+		);
+
+		$pagePropsConditions = "( (pp_propname = 'approvedrevs' AND pp_value = 'y') " .
+			"OR pp_propname = 'approvedrevs-approver-users' " .
+			"OR pp_propname = 'approvedrevs-approver-groups' )";
+
+		#
+		#	ALLFILES: list all approved pages
+		#   also includes $this->mMode == 'invalid', see formatResult()
+		#
+		if ( $this->mMode == 'allapproved' ) {
+
+			// get everything from approved_revs table
+			$conds['p.page_namespace'] = NS_FILE;
+
+		#
+		#	UNAPPROVED
+		#
+		} elseif ( $this->mMode == 'unapproved' ) {
+
+			$join_conds['im'] = array( 'RIGHT OUTER JOIN', 'ar.file_title=im.img_name' );
+
+			$approvedRevsNamespaces = ApprovedRevs::getApprovableNamespaces();
+
+			// if all files are not approvable then need to find files matching
+			// __APPROVEDREVS__ and {{#approvable_by: ... }} permissions
+			if ( ! in_array( NS_FILE, $approvedRevsNamespaces ) ) {
+				$conds[] = $pagePropsConditions;
+			}
+
+			$conds['ar.file_title'] = null;
+			$conds['p.page_namespace'] = NS_FILE;
+
+		#
+		#	INVALID PERMISSIONS
+		#
+		} elseif ( $this->mMode == 'invalid' ) {
+
+			$tables['c'] = 'categorylinks';
+			$join_conds['c'] = array( 'LEFT OUTER JOIN', 'p.page_id=c.cl_from' );
+			$join_conds['im'] = array( 'LEFT OUTER JOIN', 'ar.file_title=im.img_name' );
+
+			$approvedRevsNamespaces = ApprovedRevs::getApprovableNamespaces();
+
+			if ( in_array( NS_FILE, $approvedRevsNamespaces ) ) {
+
+				// if all files are approvable, no files should have invalid
+				// approvals. Below is an impossible condition that prevents any
+				// results from being returned.
+				$conds[] = 'p.page_namespace=1 AND p.page_namespace=2';
+			}
+			else {
+
+				$conds[] = "( pp_propname IS NULL OR NOT $pagePropsConditions )";;
+
+			}
+
+			$conds['p.page_namespace'] = NS_FILE;
+
+		#
+		#	NOTLATEST
+		#
+		} else {
+
+			// Name/Title both exist, sha1's don't match OR timestamps
+			// don't match
+			$conds['p.page_namespace'] = NS_FILE;
+			$conds[] = "(ar.approved_sha1!=im.img_sha1 OR ar.approved_timestamp!=im.img_timestamp)";
+
+		}
+
+		return [
+			'tables' => $tables,
+			'fields' => $fields,
+			'join_conds' => $join_conds,
+			'conds' => $conds,
+			'options' => array( 'DISTINCT' ),
+		];
+
 	}
 
 	function getOrder() {
@@ -242,6 +354,20 @@ class SpecialApprovedRevsPage extends QueryPage {
 	}
 
 	function formatResult( $skin, $result ) {
+		// SQL for page revision approvals versus file revision approvals is
+		// significantly different. Easier to follow if broken into two functions.
+		if ( in_array(
+			$this->mMode,
+			array( 'notlatestfiles', 'unapprovedfiles', 'allfiles', 'invalidfiles' )
+		) ) {
+			return $this->formatResultFileApprovals();
+		}
+		else {
+			return $this->formatResultPageApprovals();
+		}
+	}
+
+	function formatResultPageApprovals( $skin, $result ) {
 		$title = Title::newFromId( $result->id );
 
 		if( !ApprovedRevs::pageIsApprovable( $title ) && $this->mMode !== 'invalid' ) {
@@ -334,6 +460,139 @@ class SpecialApprovedRevsPage extends QueryPage {
 
 			return "$pageLink ($diffLink)";
 		}
+	}
+
+	public function formatResultFileApprovals( $skin, $result ) {
+
+		$title = Title::makeTitle( NS_FILE, $result->title );
+
+		if ( ! self::$repo ) {
+			self::$repo = RepoGroup::singleton();
+		}
+
+		$pageLink = Linker::link( $title );
+
+
+		#
+		#	Unapproved Files
+		#
+		if ( $this->mMode == 'unapproved' ) {
+			global $egApprovedRevsShowApproveLatest;
+
+			if ( $egApprovedRevsShowApproveLatest && ApprovedRevs::userCanApprove( $title ) ) {
+				$approveLink = ' (' . Xml::element(
+					'a',
+					array(
+						'href' => $title->getLocalUrl(
+							array(
+								'action' => 'approvefile',
+								'ts' => $result->latest_ts,
+								'sha1' => $result->latest_sha1
+							)
+						)
+					),
+					wfMessage( 'approvedrevs-approve' )->text()
+				) . ')';
+			}
+			else {
+				$approveLink = '';
+			}
+
+			return "$pageLink$approveLink";
+
+		#
+		#   Invalid Files
+		#
+		} elseif ( $this->mMode == 'invalid' ) {
+
+			if ( ! ApprovedRevs::fileIsApprovable( $title ) ) {
+				// if showing invalid files only, don't show files
+				// that have real approvability
+				return '';
+			}
+
+			return $pageLink;
+
+		#
+		#	All Files with an approved revision
+		#
+			// main mode (pages with an approved revision)
+		} elseif ( $this->mMode == 'allapproved' ) {
+			global $wgUser, $wgOut, $wgLang;
+
+			$additionalInfo = Xml::element( 'span',
+				array(
+					'class' =>
+						( $result->approved_sha1 == $result->latest_sha1
+							&& $result->approved_ts == $result->latest_ts
+						) ? 'approvedRevIsLatest' : 'approvedRevNotLatest'
+				),
+				wfMessage(
+					'approvedrevs-revisionnumber',
+					substr( $result->approved_sha1, 0, 8 )
+				)->parse()
+			);
+
+			// Get data on the most recent approval from the
+			// 'approval' log, and display it if it's there.
+			$loglist = new LogEventsList( $skin, $wgOut );
+			$pager = new LogPager( $loglist, 'approval', '', $title );
+			$pager->mLimit = 1;
+			$pager->doQuery();
+
+			$result = $pager->getResult();
+			$row = $result->fetchObject();
+
+
+			if ( ! empty( $row ) ) {
+				$timestamp = $wgLang->timeanddate(
+					wfTimestamp( TS_MW, $row->log_timestamp ), true
+				);
+				$date = $wgLang->date(
+					wfTimestamp( TS_MW, $row->log_timestamp ), true
+				);
+				$time = $wgLang->time(
+					wfTimestamp( TS_MW, $row->log_timestamp ), true
+				);
+				$userLink = $skin->userLink( $row->log_user, $row->user_name );
+				$additionalInfo .= ', ' . wfMessage(
+					'approvedrevs-approvedby',
+					$userLink,
+					$timestamp,
+					$row->user_name,
+					$date,
+					$time
+				)->text();
+			}
+
+			return "$pageLink ($additionalInfo)";
+
+		#
+		# Not Latest Files:
+		# [[My File.jpg]] (revision 2ba82e7f approved; revision 6ac914dc latest)
+		} else {
+
+			$approved_file = self::$repo->findFileFromKey(
+				$result->approved_sha1,
+				array( 'time' => $result->approved_ts )
+			);
+			$latest_file = self::$repo->findFileFromKey(
+				$result->latest_sha1,
+				array( 'time' => $result->latest_ts )
+			);
+
+			$approvedLink = Xml::element( 'a',
+				array( 'href' => $approved_file->getUrl() ),
+				wfMessage( 'approvedrevs-approvedfile' )->text()
+			);
+			$latestLink = Xml::element( 'a',
+				array( 'href' => $latest_file->getUrl() ),
+				wfMessage( 'approvedrevs-latestfile' )->text()
+			);
+
+			return "$pageLink ($approvedLink | $latestLink)";
+		}
+
 	}
 
 }
