@@ -45,7 +45,6 @@
 	"approvedrevs-historylabel": "&#9733; Approved revision",
 	"approvedrevs-approvedfile": "Approved file",
 	"approvedrevs-latestfile": "Latest file",
-	"approvedfiles": "Approved files",
 	"apihelp-approve-description": "Review a revision by approving or de-approving it.",
 	"apihelp-approve-summary": "Review a revision by approving or de-approving it.",
 	"apihelp-approve-param-revid": "The revision ID for which to approve.",

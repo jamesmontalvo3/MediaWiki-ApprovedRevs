@@ -41,8 +41,7 @@
 		"approval/unapprove": "approvedrevs-unapproveaction"
 	},
 	"SpecialPages": {
-		"ApprovedRevs": "SpecialApprovedRevs",
-		"ApprovedFiles": "SpecialApprovedFiles"
+		"ApprovedRevs": "SpecialApprovedRevs"
 	},
 	"APIModules": {
 		"approve": "ApiApprove"
@@ -61,10 +60,6 @@
 		"ApprovedRevsHooks": "includes/ApprovedRevs.hooks.php",
 		"SpecialApprovedRevs": "includes/SpecialApprovedRevs.php",
 		"SpecialApprovedRevsPage": "includes/SpecialApprovedRevsPage.php",
-
-		"SpecialApprovedFiles": "includes/SpecialApprovedFiles.php",
-		"SpecialApprovedFilesPage": "includes/SpecialApprovedFilesPage.php",
-
 		"ApiApprove": "includes/ApiApprove.php",
 		"ARApproveAction": "includes/AR_ApproveAction.php",
 		"ARUnapproveAction": "includes/AR_UnapproveAction.php"

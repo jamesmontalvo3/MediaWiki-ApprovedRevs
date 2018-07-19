@@ -10,7 +10,6 @@ $specialPageAliases = array();
 /** English (English) */
 $specialPageAliases['en'] = array(
 	'ApprovedRevs' => array( 'ApprovedRevs', 'ApprovedPages', 'UnapprovedPages' ),
-	'ApprovedFiles' => array( 'ApprovedFiles' ),
 );
 
 /** Arabic (العربية) */
