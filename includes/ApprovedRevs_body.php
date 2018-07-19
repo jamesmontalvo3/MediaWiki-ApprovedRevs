@@ -15,6 +15,7 @@ class ApprovedRevs {
 	static $mApprovedRevIDForPage = array();
 	static $mApproverForPage = array();
 	static $mUserCanApprove = null;
+	static $mApprovedFileInfo = array();
 
 	/**
 	 * Gets the approved revision User for this page, or null if there isn't
