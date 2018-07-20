@@ -940,7 +940,8 @@ class ApprovedRevsHooks {
 			$s = preg_replace( $pattern, $replace, $s );
 		}
 
-		if ( ApprovedRevs::userCanApprove( $fileTitle ) ) {
+		$user = $hist->getContext()->getUser();
+		if ( ApprovedRevs::userCanApprove( $user, $fileTitle ) ) {
 			if (
 				$rowSha1 == $approvedRevSha1 &&
 				$rowTimestamp == $approvedRevTimestamp
@@ -1082,7 +1083,7 @@ class ApprovedRevsHooks {
 		if ( ! ApprovedRevs::fileIsApprovable( $title ) ) {
 			return true;
 		}
-		if ( ! ApprovedRevs::userCanApprove( $title ) ) {
+		if ( ! ApprovedRevs::userCanApprove( $article->getContext()->getUser(), $title ) ) {
 			return true;
 		}
 		global $wgRequest;
@@ -1126,7 +1127,7 @@ class ApprovedRevsHooks {
 			return true;
 		}
 		$title = $article->getTitle();
-		if ( ! ApprovedRevs::userCanApprove( $title ) ) {
+		if ( ! ApprovedRevs::userCanApprove( $article->getContext()->getUser(), $title ) ) {
 			return true;
 		}
 
