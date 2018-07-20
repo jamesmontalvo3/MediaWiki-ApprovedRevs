@@ -164,16 +164,24 @@ class ApprovedRevs {
 
 	public static function fileIsApprovable ( Title $title ) {
 
-		// title doesn't exist, not approvable
-		if ( ! $title->exists() ) {
-			return $title->isApprovable = false;
+		// If this function was already called for this page, the value
+		// should have been stored as a field in the $title object.
+		if ( isset( $title->isApprovable ) ) {
+			return $title->isApprovable;
 		}
 
-		// Check if ApprovedRevs::$permissions defines approvals for $title
-		if ( self::titleInApprovedRevsPermissions( $title ) ) {
-			$title->isApprovable = true;
-			return true;
+		if ( !$title->exists() ) {
+			$title->isApprovable = false;
+			return $title->isApprovable;
 		}
+
+
+		// Allow custom setting of whether the page is approvable.
+		if ( !Hooks::run( 'ApprovedRevsFileIsApprovable', array( $title, &$isApprovable ) ) ) {
+			$title->isApprovable = $isApprovable;
+			return $title->isApprovable;
+		}
+
 
 		// if a file already has an approval, it must be considered approvable
 		// in order for the user to be able to view/modify approvals. Though
@@ -181,8 +189,7 @@ class ApprovedRevs {
 		// necessary now since approvability can change much more easily
 
 		// if title in approved_revs_files table
-		list( $timestamp, $sha1 ) =
-			self::getApprovedFileInfo( $title );
+		list( $timestamp, $sha1 ) = self::getApprovedFileInfo( $title );
 		if ( $timestamp !== false ) {
 			// only approvable because it already has an approved rev, not
 			// because it is in ApprovedRevs::$permissions
@@ -193,6 +200,49 @@ class ApprovedRevs {
 			$title->isApprovable = false;
 			return false;
 		}
+
+		// Check if NS_FILE is in approvable namespaces
+		// FIXME: needs to be updated when [1] is merged, changing how $egApprovedRevsNamespaces works
+		//        [1] https://gerrit.wikimedia.org/r/#/c/mediawiki/extensions/ApprovedRevs/+/445560/
+		global $egApprovedRevsNamespaces;
+		if ( in_array( NS_FILE, $egApprovedRevsNamespaces ) ) {
+			$title->isApprovable = true;
+			return $title->isApprovable;
+		}
+
+		// It's not in an included namespace, so check for the page
+		// properties for the parser functions - for some reason, calling the standard
+		// getProperty() function doesn't work, so we just do a DB
+		// query on the page_props table.
+		//
+		// NOTE: Checks for these propnames won't do anything until [1] is merged, but also will
+		//       not hurt anything.
+		//       [1] https://gerrit.wikimedia.org/r/#/c/mediawiki/extensions/ApprovedRevs/+/429368/
+		$dbr = wfGetDB( DB_SLAVE );
+		$res = $dbr->select( 'page_props', 'COUNT(*)',
+			[
+				'pp_page' => $title->getArticleID(),
+				'pp_propname' => [ 'approvedrevs-approver-users', 'approvedrevs-approver-groups' ],
+			]
+		);
+		$row = $dbr->fetchRow( $res );
+		if ( intval( $row[0] ) > 0 ) {
+			$title->isApprovable = true;
+			return $isApprovable;
+		}
+
+		// parser function page properties not present. Check for magic word.
+		$res = $dbr->select( 'page_props', 'COUNT(*)',
+			array(
+				'pp_page' => $title->getArticleID(),
+				'pp_propname' => 'approvedrevs',
+				'pp_value' => 'y'
+			)
+		);
+		$row = $dbr->fetchRow( $res );
+		$isApprovable = ( $row[0] == '1' );
+		$title->isApprovable = $isApprovable;
+		return $isApprovable;
 
 	}
 
@@ -379,10 +429,6 @@ class ApprovedRevs {
 			return Linker::linkKnown( $title, $msg, $attrs, $params );
 		}
 	}
-
-
-
-
 
 	public static function setApprovedFileInDB ( $title, $timestamp, $sha1 ) {
 
