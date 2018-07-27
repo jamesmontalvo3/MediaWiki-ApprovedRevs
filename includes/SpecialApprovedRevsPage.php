@@ -245,7 +245,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 			'ar' => 'approved_revs_files',
 			'im' => 'image',
 			'p' => 'page',
-			// 'pp' => 'page_props',
 		);
 
 		$fields = array(
@@ -259,9 +258,8 @@ class SpecialApprovedRevsPage extends QueryPage {
 		$conds = array();
 
 		$join_conds = array(
-			'im' => array( null /*'LEFT OUTER JOIN'*/ , 'ar.file_title=im.img_name' ),
-			'p'  => array( null /*'LEFT OUTER JOIN'*/ , 'im.img_name=p.page_title' ),
-			// 'pp' => array( 'LEFT OUTER JOIN', 'p.page_id=pp_page' ),
+			'im' => array( null, 'ar.file_title=im.img_name' ),
+			'p'  => array( 'JOIN' , 'im.img_name=p.page_title' ),
 		);
 
 		$pagePropsConditions = "( (pp_propname = 'approvedrevs' AND pp_value = 'y') " .
@@ -275,7 +273,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 		if ( $this->mMode == 'approvedfiles' ) {
 
 			$join_conds['im'][0] = 'JOIN';
-			$join_conds['p'][0] = 'JOIN';
 
 			// get everything from approved_revs table
 			$conds['p.page_namespace'] = NS_FILE;
@@ -286,7 +283,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 		} elseif ( $this->mMode == 'unapprovedfiles' ) {
 
 			$join_conds['im'][0] = 'RIGHT OUTER JOIN';
-			$join_conds['p'][0] = 'JOIN';
 
 			$tables['pp'] = 'page_props';
 			$join_conds['pp'] = array( 'LEFT OUTER JOIN', 'p.page_id=pp_page' );
@@ -308,7 +304,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 		} elseif ( $this->mMode == 'invalidfiles' ) {
 
 			$join_conds['im'][0] = 'LEFT OUTER JOIN';
-			$join_conds['p'][0] = 'JOIN';
 
 			$tables['pp'] = 'page_props';
 			$join_conds['pp'] = array( 'LEFT OUTER JOIN', 'p.page_id=pp_page' );
@@ -336,7 +331,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 		} elseif ( $this->mMode == 'notlatestfiles' ) {
 
 			$join_conds['im'][0] = 'JOIN';
-			$join_conds['p'][0] = 'JOIN';
 
 			// Name/Title both exist, sha1's don't match OR timestamps
 			// don't match
