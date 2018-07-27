@@ -255,7 +255,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 			'im.img_timestamp AS latest_ts',
 		);
 
-		$conds = array();
+		$conds = array( 'p.page_namespace' => NS_FILE );
 
 		$join_conds = array(
 			'im' => array( null, 'ar.file_title=im.img_name' ),
@@ -275,7 +275,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 			$join_conds['im'][0] = 'JOIN';
 
 			// get everything from approved_revs table
-			$conds['p.page_namespace'] = NS_FILE;
 
 		#
 		#	UNAPPROVED
@@ -296,7 +295,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 			}
 
 			$conds['ar.file_title'] = null;
-			$conds['p.page_namespace'] = NS_FILE;
 
 		#
 		#	INVALID PERMISSIONS
@@ -323,8 +321,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 
 			}
 
-			$conds['p.page_namespace'] = NS_FILE;
-
 		#
 		#	NOTLATEST
 		#
@@ -334,7 +330,6 @@ class SpecialApprovedRevsPage extends QueryPage {
 
 			// Name/Title both exist, sha1's don't match OR timestamps
 			// don't match
-			$conds['p.page_namespace'] = NS_FILE;
 			$conds[] = "(ar.approved_sha1!=im.img_sha1 OR ar.approved_timestamp!=im.img_timestamp)";
 
 		}
