@@ -11,8 +11,8 @@ class SpecialApprovedRevsPage extends QueryPage {
 	protected $mMode;
 
 	/**
-	 * @var Array $mHeaderLinks: pairs mode with messages. E.g. mode "allfiles"
-	 *      used to generate a header link with query string having "show=allfiles"
+	 * @var Array $mHeaderLinks: pairs mode with messages. E.g. mode "approvedfiles"
+	 *      used to generate a header link with query string having "show=approvedfiles"
 	 *      and link text of "All files with an approved revision" (in English).
 	 */
 	protected $mHeaderLinks = array(
@@ -26,7 +26,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		// for approved file revs
 		'approvedrevs-notlatestfiles'     => 'notlatestfiles',
 		'approvedrevs-unapprovedfiles'    => 'unapprovedfiles',
-		'approvedrevs-approvedfiles'      => 'allfiles',
+		'approvedrevs-approvedfiles'      => 'approvedfiles',
 		'approvedrevs-invalidfiles'       => 'invalidfiles',
 	);
 	protected static $repo;
@@ -112,7 +112,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		// significantly different. Easier to follow if broken into two functions.
 		if ( in_array(
 			$this->mMode,
-			array( 'notlatestfiles', 'unapprovedfiles', 'allfiles', 'invalidfiles' )
+			array( 'notlatestfiles', 'unapprovedfiles', 'approvedfiles', 'invalidfiles' )
 		) ) {
 			return $this->getQueryInfoFileApprovals();
 		}
@@ -269,10 +269,10 @@ class SpecialApprovedRevsPage extends QueryPage {
 			"OR pp_propname = 'approvedrevs-approver-groups' )";
 
 		#
-		#	ALLFILES: list all approved pages
+		#	APPROVED FILES: list all approved files
 		#   also includes $this->mMode == 'invalid', see formatResult()
 		#
-		if ( $this->mMode == 'allfiles' ) {
+		if ( $this->mMode == 'approvedfiles' ) {
 
 			$join_conds['im'][0] = 'JOIN';
 			$join_conds['p'][0] = 'JOIN';
@@ -372,7 +372,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		// significantly different. Easier to follow if broken into two functions.
 		if ( in_array(
 			$this->mMode,
-			array( 'notlatestfiles', 'unapprovedfiles', 'allfiles', 'invalidfiles' )
+			array( 'notlatestfiles', 'unapprovedfiles', 'approvedfiles', 'invalidfiles' )
 		) ) {
 			return $this->formatResultFileApprovals( $skin, $result );
 		}
@@ -535,7 +535,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#	All Files with an approved revision
 		#
 			// main mode (pages with an approved revision)
-		} elseif ( $this->mMode == 'allfiles' ) {
+		} elseif ( $this->mMode == 'approvedfiles' ) {
 			global $wgUser, $wgOut, $wgLang;
 
 			$additionalInfo = Xml::element( 'span',
@@ -572,7 +572,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 				$time = $wgLang->time(
 					wfTimestamp( TS_MW, $row->log_timestamp ), true
 				);
-				$userLink = $skin->userLink( $row->log_user, $row->user_name );
+				$userLink = Linker::userLink( $row->log_user, $row->user_name );
 				$additionalInfo .= ', ' . wfMessage(
 					'approvedrevs-approvedby',
 					$userLink,
