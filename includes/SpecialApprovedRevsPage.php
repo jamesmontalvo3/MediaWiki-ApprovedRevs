@@ -15,7 +15,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 	 *      used to generate a header link with query string having "show=allfiles"
 	 *      and link text of "All files with an approved revision" (in English).
 	 */
-	protected $mHeaderLinks = [
+	protected $mHeaderLinks = array(
 
 		// for approved page revs
 		'approvedrevs-notlatestpages'     => '',
@@ -24,11 +24,11 @@ class SpecialApprovedRevsPage extends QueryPage {
 		'approvedrevs-invalidpages'       => 'invalid',
 
 		// for approved file revs
-		'approvedrevs-notlatestpages'     => 'notlatestfiles',
-		'approvedrevs-unapprovedpages'    => 'unapprovedfiles',
-		'approvedrevs-approvedpages'      => 'allfiles',
-		'approvedrevs-invalidpages'       => 'invalidfiles',
-	];
+		'approvedrevs-notlatestfiles'     => 'notlatestfiles',
+		'approvedrevs-unapprovedfiles'    => 'unapprovedfiles',
+		'approvedrevs-approvedfiles'      => 'allfiles',
+		'approvedrevs-invalidfiles'       => 'invalidfiles',
+	);
 
 	public function __construct( $mode ) {
 		if ( $this instanceof SpecialPage ) {
@@ -360,15 +360,18 @@ class SpecialApprovedRevsPage extends QueryPage {
 			$this->mMode,
 			array( 'notlatestfiles', 'unapprovedfiles', 'allfiles', 'invalidfiles' )
 		) ) {
-			return $this->formatResultFileApprovals();
+			return $this->formatResultFileApprovals( $skin, $result );
 		}
 		else {
-			return $this->formatResultPageApprovals();
+			return $this->formatResultPageApprovals( $skin, $result );
 		}
 	}
 
 	function formatResultPageApprovals( $skin, $result ) {
 		$title = Title::newFromId( $result->id );
+		if ( is_null( $title ) ) {
+			return false;
+		}
 
 		if( !ApprovedRevs::pageIsApprovable( $title ) && $this->mMode !== 'invalid' ) {
 			return false;
