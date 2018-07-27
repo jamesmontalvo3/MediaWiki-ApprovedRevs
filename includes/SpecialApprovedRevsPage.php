@@ -29,6 +29,8 @@ class SpecialApprovedRevsPage extends QueryPage {
 		'approvedrevs-approvedfiles'      => 'allfiles',
 		'approvedrevs-invalidfiles'       => 'invalidfiles',
 	);
+	protected static $repo;
+
 
 	public function __construct( $mode ) {
 		if ( $this instanceof SpecialPage ) {
@@ -243,7 +245,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 			'ar' => 'approved_revs_files',
 			'im' => 'image',
 			'p' => 'page',
-			'pp' => 'page_props',
+			// 'pp' => 'page_props',
 		);
 
 		$fields = array(
@@ -257,9 +259,9 @@ class SpecialApprovedRevsPage extends QueryPage {
 		$conds = array();
 
 		$join_conds = array(
-			'im' => array( 'LEFT OUTER JOIN', 'ar.file_title=im.img_name' ),
-			'p'  => array( 'LEFT OUTER JOIN', 'im.img_name=p.page_title' ),
-			'pp' => array( 'LEFT OUTER JOIN', 'ar.page_id=pp_page' ),
+			'im' => array( null /*'LEFT OUTER JOIN'*/ , 'ar.file_title=im.img_name' ),
+			'p'  => array( null /*'LEFT OUTER JOIN'*/ , 'im.img_name=p.page_title' ),
+			// 'pp' => array( 'LEFT OUTER JOIN', 'p.page_id=pp_page' ),
 		);
 
 		$pagePropsConditions = "( (pp_propname = 'approvedrevs' AND pp_value = 'y') " .
@@ -270,7 +272,10 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#	ALLFILES: list all approved pages
 		#   also includes $this->mMode == 'invalid', see formatResult()
 		#
-		if ( $this->mMode == 'allapproved' ) {
+		if ( $this->mMode == 'allfiles' ) {
+
+			$join_conds['im'][0] = 'JOIN';
+			$join_conds['p'][0] = 'JOIN';
 
 			// get everything from approved_revs table
 			$conds['p.page_namespace'] = NS_FILE;
@@ -278,9 +283,13 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#
 		#	UNAPPROVED
 		#
-		} elseif ( $this->mMode == 'unapproved' ) {
+		} elseif ( $this->mMode == 'unapprovedfiles' ) {
 
-			$join_conds['im'] = array( 'RIGHT OUTER JOIN', 'ar.file_title=im.img_name' );
+			$join_conds['im'][0] = 'RIGHT OUTER JOIN';
+			$join_conds['p'][0] = 'JOIN';
+
+			$tables['pp'] = 'page_props';
+			$join_conds['pp'] = array( 'LEFT OUTER JOIN', 'p.page_id=pp_page' );
 
 			$approvedRevsNamespaces = ApprovedRevs::getApprovableNamespaces();
 
@@ -296,11 +305,13 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#
 		#	INVALID PERMISSIONS
 		#
-		} elseif ( $this->mMode == 'invalid' ) {
+		} elseif ( $this->mMode == 'invalidfiles' ) {
 
-			$tables['c'] = 'categorylinks';
-			$join_conds['c'] = array( 'LEFT OUTER JOIN', 'p.page_id=c.cl_from' );
-			$join_conds['im'] = array( 'LEFT OUTER JOIN', 'ar.file_title=im.img_name' );
+			$join_conds['im'][0] = 'LEFT OUTER JOIN';
+			$join_conds['p'][0] = 'JOIN';
+
+			$tables['pp'] = 'page_props';
+			$join_conds['pp'] = array( 'LEFT OUTER JOIN', 'ar.page_id=pp_page' );
 
 			$approvedRevsNamespaces = ApprovedRevs::getApprovableNamespaces();
 
@@ -322,7 +333,10 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#
 		#	NOTLATEST
 		#
-		} else {
+		} elseif ( $this->mMode == 'notlatestfiles' ) {
+
+			$join_conds['im'][0] = 'JOIN';
+			$join_conds['p'][0] = 'JOIN';
 
 			// Name/Title both exist, sha1's don't match OR timestamps
 			// don't match
@@ -331,13 +345,13 @@ class SpecialApprovedRevsPage extends QueryPage {
 
 		}
 
-		return [
+		return array(
 			'tables' => $tables,
 			'fields' => $fields,
 			'join_conds' => $join_conds,
 			'conds' => $conds,
 			'options' => array( 'DISTINCT' ),
-		];
+		);
 
 	}
 
@@ -370,6 +384,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 	function formatResultPageApprovals( $skin, $result ) {
 		$title = Title::newFromId( $result->id );
 		if ( is_null( $title ) ) {
+			echo " nulltitle ";
 			return false;
 		}
 
@@ -479,7 +494,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#
 		#	Unapproved Files
 		#
-		if ( $this->mMode == 'unapproved' ) {
+		if ( $this->mMode == 'unapprovedfiles' ) {
 			global $egApprovedRevsShowApproveLatest;
 
 			if ( $egApprovedRevsShowApproveLatest && ApprovedRevs::userCanApprove( $title ) ) {
@@ -506,7 +521,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#
 		#   Invalid Files
 		#
-		} elseif ( $this->mMode == 'invalid' ) {
+		} elseif ( $this->mMode == 'invalidfiles' ) {
 
 			if ( ! ApprovedRevs::fileIsApprovable( $title ) ) {
 				// if showing invalid files only, don't show files
@@ -520,7 +535,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#	All Files with an approved revision
 		#
 			// main mode (pages with an approved revision)
-		} elseif ( $this->mMode == 'allapproved' ) {
+		} elseif ( $this->mMode == 'allfiles' ) {
 			global $wgUser, $wgOut, $wgLang;
 
 			$additionalInfo = Xml::element( 'span',
@@ -573,7 +588,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 		#
 		# Not Latest Files:
 		# [[My File.jpg]] (revision 2ba82e7f approved; revision 6ac914dc latest)
-		} else {
+		} elseif ( $this->mMode == 'notlatestfiles' ) {
 
 			$approved_file = self::$repo->findFileFromKey(
 				$result->approved_sha1,
