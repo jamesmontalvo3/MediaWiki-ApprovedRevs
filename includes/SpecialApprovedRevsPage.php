@@ -311,7 +311,7 @@ class SpecialApprovedRevsPage extends QueryPage {
 			$join_conds['p'][0] = 'JOIN';
 
 			$tables['pp'] = 'page_props';
-			$join_conds['pp'] = array( 'LEFT OUTER JOIN', 'ar.page_id=pp_page' );
+			$join_conds['pp'] = array( 'LEFT OUTER JOIN', 'p.page_id=pp_page' );
 
 			$approvedRevsNamespaces = ApprovedRevs::getApprovableNamespaces();
 
