@@ -120,6 +120,15 @@ $wgHooks['BeforeParserFetchFileAndTitle'][] =
 $wgHooks['ImagePageFindFile'][] = 'ApprovedRevsHooks::onImagePageFindFile';
 $wgHooks['FileDeleteComplete'][] = 'ApprovedRevsHooks::onFileDeleteComplete';
 
+$wgHooks['ParserFirstCallInit'][] = function ( &$parser ) {
+	$parser->setFunctionHook(
+		'approvable_by',
+		function ( Parser &$parser, PPFrame $frame, Array $args ) { return ''; },
+		Parser::SFH_OBJECT_ARGS
+	);
+	return true;
+};
+
 
 // logging
 $wgLogTypes['approval'] = 'approval';
